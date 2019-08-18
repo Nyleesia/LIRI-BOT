@@ -149,8 +149,8 @@ if (searchType===`do-what-it-says`){
             log ("");
             log (`Title: ${response.Title}`);
             log (`Year: ${response.Year}`);
-            log (`IMDB Rating: ${response.Ratings[0].value}`);
-            log (`Rotten Tomatoes Rating: ${response.Ratings[1].value}`);
+            log (`IMDB Rating: ${response.Ratings[0].Value}`);
+            log (`Rotten Tomatoes Rating: ${response.Ratings[1].Value}`);
             log (`Produced in: ${response.Country}`);
             log (`Language: ${response.Language}`);
             log (`Plot: ${response.Plot}`);
