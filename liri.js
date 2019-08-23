@@ -13,12 +13,11 @@ const omdb = require('omdb');
 
 // accesses the command-line arguments from index 2
 const searchType = process.argv[2];
-const search = process.argv.slice(3).join(" ");
+let search = process.argv.slice(3).join(" ");
 log (search);
-
+let artist = process.argv.slice(3).join(" ");
 // acceses the random.txt file and reads the content to determine the type of search that was previously made
-const prevSerarchType=fs.readFileSync("random.txt", "utf8"); 
-
+let prevSearch=fs.readFileSync("random.txt", "utf8"); 
 
 const space ="\n*******************************************\n\n" // saves a spacer variable for readability
 
@@ -51,28 +50,67 @@ if (searchType===`movie-this`){
     }
 };
 if (searchType===`do-what-it-says`){ 
-    log (prevSerarchType);
+    log (prevSearch);
     fs.readFile("random.txt", "utf8", function(err, data){
         if (err){
             log (err);
         }
-        if (prevSerarchType === "concert-this"){
-            findConcert();
+        let prevSearchLog = data.split(" ");
+        let prevSearchType = prevSearchLog[0];
+        let thisSearch= prevSearchLog.slice(1).join(' '); 
+        log (thisSearch);
+
+        if (prevSearchType === "concert-this"){
+            artist=prevSearchLog.slice(1).join(' ');
+            findConcert ();
         }
-        if (prevSerarchType === "movie-this"){
-            findMovie();
+        else if (prevSearchType==="movie-this"){
+            movie = prevSearchLog.slice(1).join(' ');
+            log (movie);
+            axios.get(`http://www.omdbapi.com/?t=${movie}&type=movie&apikey=trilogy`)
+            .then(function (movie) {
+                let response=movie.data;
+                log(space);
+                log (`Title: ${response.Title}`);
+                log (`Year: ${response.Year}`);
+                log (`IMDB Rating: ${response.Ratings[0].Value}`);
+                log (`Rotten Tomatoes Rating: ${response.Ratings[1].Value}`);
+                log (`Produced in: ${response.Country}`);
+                log (`Language: ${response.Language}`);
+                log (`Plot: ${response.Plot}`);
+                log (`Actors: ${response.Actors}`);
+                log(space);
+            })
+            .catch(function(err){
+                log (err);
+            }) 
         }
-        if (prevSerarchType === "spotify-this-song"){
-            findSong();
-        }
-    }); 
+        else if (prevSearchType === "spotify-this-song"){
+            song=prevSearchLog.slice(1).join(' ');
+            spotify.search ({ type:"track", query: song, limit: 5}, function (err, data){
+                if (err != null) {
+                    return log ("An error occured: " + err); 
+                }
+                data.tracks.items.forEach(function(element){
+                    log(space)
+                    log(`Artist: ${element.album.artists[0].name}`);
+                    log(`Song: ${element.name}`);
+                    log(`Preview on Spotify: ${element.preview_url}`);
+                    if (element.album.name != null) { 
+                        log(`Album: ${element.album.name}`);
+                    }
+                    log(space)
+                }
+            ); 
+        })
+    }
+});
 }
 
 // functions for each of three possible searchTerms*********************************************
 
     // function to search for concerts
     function findConcert (){        
-        let artist= process.argv.slice(3).join(" ");
         let concertUrl = (`https://rest.bandsintown.com/artists/${artist}/events?app_id=codingbootcamp`);
         
         axios.get(concertUrl)
@@ -81,24 +119,29 @@ if (searchType===`do-what-it-says`){
                if (err != null) {
                    return log("err: " + err)
                 }
+            
+            if(response.data.length == 0 )  {
+                log(`No concerts found`); 
+                return log (space)
+            }
 
-            log(response);
+            log(space);
             log(`Venue Name: ${response.data[0].venue.name}`);
             log(`City: ${response.data[0].venue.city}`);
             log(`Time: ${response.data[0].datetime}`);
-
-
             log(space);
             
             // re-writes the search type in the random.txt file
             if (searchType != "do-what-it-says"){
-            fs.writeFile("random.txt", `${searchType}`, function(err) { if (err) throw err;});
+            fs.writeFile("random.txt", `${searchType} ${search} `, function(err) { if (err) throw err;});
             }
 
             // saves concert searches to a log file
+            fs.appendFileSync("logConcerts.txt", space, function(err){if (err) throw err;}); 
             fs.appendFileSync("logConcerts.txt", `Venue Name: ${response.data[0].venue.name}`, function(err){if (err) throw err;}); 
             fs.appendFileSync("logConcerts.txt", `City: ${response.data[0].venue.city}`, function(err){if (err) throw err;}); 
             fs.appendFileSync("logConcerts.txt", `Time: ${response.data[0].datetime}`, function(err){if (err) throw err;}); 
+            fs.appendFileSync("logConcerts.txt", space, function(err){if (err) throw err;}); 
         })
         .catch(function(err){
             log (err);
@@ -107,13 +150,14 @@ if (searchType===`do-what-it-says`){
 
     // function to find songs
     function findSong (){
-        let song = process.argv.slice(3).join(" ");
+        song = process.argv.slice(3).join(" ");
         spotify.search ({ type:"track", query: song, limit: 5}, function (err, data){
             if (err != null) {
                 return log ("An error occured: " + err); 
             }
             data.tracks.items.forEach(function(element){
 
+                log(space)
                 log(`Artist: ${element.album.artists[0].name}`);
                 log(`Song: ${element.name}`);
                 log(`Preview on Spotify: ${element.preview_url}`);
@@ -124,7 +168,7 @@ if (searchType===`do-what-it-says`){
 
                 // re-writes the search type in the random.txt file
                 if (searchType!="do-what-it-says"){
-                    fs.writeFile("random.txt", `${searchType}`, function(err) { if (err) throw err;});
+                    fs.writeFile("random.txt", `${searchType} ${search}`, function(err) { if (err) throw err;});
                     }
             
                 // saves song searches to a log file
@@ -143,10 +187,12 @@ if (searchType===`do-what-it-says`){
         let movie = process.argv.slice(3).join(" ");
 
         axios
-        .get(`http://www.omdbapi.com/?t=${movie}&apikey=trilogy`)
+        .get(`http://www.omdbapi.com/?t=${movie}&type=movie&apikey=trilogy`)
         .then(function (movie) {
             let response=movie.data;
-            log ("");
+
+    
+            log(space);
             log (`Title: ${response.Title}`);
             log (`Year: ${response.Year}`);
             log (`IMDB Rating: ${response.Ratings[0].Value}`);
@@ -155,12 +201,11 @@ if (searchType===`do-what-it-says`){
             log (`Language: ${response.Language}`);
             log (`Plot: ${response.Plot}`);
             log (`Actors: ${response.Actors}`);
-
             log(space);
 
             // re-writes the search type in the random.txt file
             if (searchType != "do-what-it-says"){
-                fs.writeFile("random.txt", `${searchType}`, function(err) { if (err) throw err;});
+                fs.writeFile("random.txt", `${searchType} ${search} `, function(err) { if (err) throw err;});
             }
 
             //saves movie searches to a log file
@@ -179,4 +224,3 @@ if (searchType===`do-what-it-says`){
             log (err);
         }) 
     };
-
